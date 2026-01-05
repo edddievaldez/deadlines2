@@ -811,7 +811,7 @@
 
     function filterOptions(query) {
       const filtered = allLocations.filter(loc => 
-        loc.Name.toLowerCase().includes(query.toLowerCase())
+        loc.Name.toLowerCase().startsWith(query.toLowerCase())
       );
       populateListbox(filtered);
     }
@@ -912,7 +912,7 @@
 
     function filterCourts(query) {
       const filtered = allCourts.filter(court => 
-        court.toLowerCase().includes(query.toLowerCase())
+        court.toLowerCase().startsWith(query.toLowerCase())
       );
       populateCourtListbox(filtered);
     }
