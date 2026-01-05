@@ -805,7 +805,8 @@
         groupHeader.textContent = county;
         $listbox.appendChild(groupHeader);
 
-        grouped[county].forEach(loc => {
+        // Sort locations alphabetically within each county
+        grouped[county].sort((a, b) => a.Name.localeCompare(b.Name)).forEach(loc => {
           const option = document.createElement('li');
           option.className = 'listbox-option';
           option.setAttribute('role', 'option');
