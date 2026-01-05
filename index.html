@@ -132,6 +132,10 @@
       background: #fff;
     }
 
+    .combobox.disabled {
+      background: #f6f6f6;
+    }
+
     .combobox input {
       flex: 1;
       height: 100%;
@@ -145,15 +149,15 @@
     }
 
     .combobox input:disabled {
-      background: #f6f6f6;
       color: #9a9a9a;
+      cursor: not-allowed;
     }
 
     .combobox input:focus {
       outline: none;
     }
 
-    .combobox:focus-within {
+    .combobox:focus-within:not(.disabled) {
       border-color: #3a6edc;
       box-shadow: 0 0 0 3px rgba(58,110,220,0.15);
     }
@@ -493,7 +497,7 @@
       <div class="field">
         <label for="courthouse-combobox">Courthouse Location</label>
 
-        <div class="combobox" role="combobox" aria-expanded="false" aria-haspopup="listbox">
+        <div class="combobox disabled" role="combobox" aria-expanded="false" aria-haspopup="listbox">
           <input
             id="courthouse-combobox"
             type="text"
@@ -564,7 +568,8 @@
 
     let allLocations = [];
     let currentCourtName = "";
-    let selectedLocationName = "";
+    let selectedLocation = null;
+    let isListboxOpen = false;
 
     const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     const isOne = v => String(v).trim() === "1";
@@ -715,10 +720,10 @@
       sendHeightSoon();
     }
 
-    function renderLocationServices(r, courtWide) {
-      const canFile = isOne(r.CanFile);
-      const canCC = isOne(r.CanCourtesyCopy);
-      const addr = formatAddress(r);
+    function renderLocationServices(locationData, courtWide) {
+      const canFile = isOne(locationData.CanFile);
+      const canCC = isOne(locationData.CanCourtesyCopy);
+      const addr = formatAddress(locationData);
 
       $results.innerHTML = `
         <div class="card-title">
@@ -726,8 +731,8 @@
           <div class="scope">Courthouse-specific, varies by location</div>
         </div>
 
-        <div class="row"><span class="k">Court</span><span class="v">${esc(r.DisplayName)}</span></div>
-        <div class="row"><span class="k">Courthouse</span><span class="v">${esc(r.Name)}</span></div>
+        <div class="row"><span class="k">Court</span><span class="v">${esc(locationData.DisplayName)}</span></div>
+        <div class="row"><span class="k">Courthouse</span><span class="v">${esc(locationData.Name)}</span></div>
         ${addr ? `<div class="row"><span class="k">Address</span><span class="v">${esc(addr)}</span></div>` : ""}
 
         <hr/>
@@ -736,11 +741,11 @@
         <div class="row"><span class="k">Availability</span><span class="v">${pillHTML(canFile)}</span></div>
 
         ${canFile ? `
-          ${(r.FileDeadline || r.FileServiceLevel) ? `
+          ${(locationData.FileDeadline || locationData.FileServiceLevel) ? `
             <div class="deadline-box">
               <div class="label">Order by</div>
-              <div class="time">${esc((r.FileDeadline || "").trim())}</div>
-              <div class="hint">${r.FileServiceLevel ? `<strong>${esc((r.FileServiceLevel || "").trim())}</strong> service` : ""}</div>
+              <div class="time">${esc((locationData.FileDeadline || "").trim())}</div>
+              <div class="hint">${locationData.FileServiceLevel ? `<strong>${esc((locationData.FileServiceLevel || "").trim())}</strong> service` : ""}</div>
             </div>
           ` : ""}
         ` : ""}
@@ -751,11 +756,11 @@
         <div class="row"><span class="k">Availability</span><span class="v">${pillHTML(canCC)}</span></div>
 
         ${canCC ? `
-          ${(r.CCDeliveryDeadline || r.CCDeliveryServiceLevel) ? `
+          ${(locationData.CCDeliveryDeadline || locationData.CCDeliveryServiceLevel) ? `
             <div class="deadline-box">
               <div class="label">Order by</div>
-              <div class="time">${esc((r.CCDeliveryDeadline || "").trim())}</div>
-              <div class="hint">${r.CCDeliveryServiceLevel ? `<strong>${esc((r.CCDeliveryServiceLevel || "").trim())}</strong> service` : ""}</div>
+              <div class="time">${esc((locationData.CCDeliveryDeadline || "").trim())}</div>
+              <div class="hint">${locationData.CCDeliveryServiceLevel ? `<strong>${esc((locationData.CCDeliveryServiceLevel || "").trim())}</strong> service` : ""}</div>
             </div>
           ` : ""}
         ` : ""}
@@ -764,7 +769,7 @@
       show($results);
       hide($physicalPrompt);
       
-      renderSummary(courtWide, r);
+      renderSummary(courtWide, locationData);
       
       $confirmation.innerHTML = `Based on your selections, you can proceed using the options above before the listed cutoff.`;
       show($confirmation);
@@ -805,11 +810,12 @@
           option.className = 'listbox-option';
           option.setAttribute('role', 'option');
           option.setAttribute('tabindex', '-1');
-          option.setAttribute('data-value', loc.Name);
+          option.setAttribute('data-court-id', loc.CourtId);
           option.textContent = loc.Name;
           
-          option.addEventListener('click', () => {
-            selectLocation(loc.Name);
+          option.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent focus loss
+            selectLocation(loc);
           });
           
           $listbox.appendChild(option);
@@ -824,41 +830,50 @@
       populateListbox(filtered);
     }
 
-    function selectLocation(locationName) {
-      selectedLocationName = locationName;
-      $comboboxInput.value = locationName;
-      $listbox.hidden = true;
-      $comboboxWrapper.setAttribute('aria-expanded', 'false');
-      
-      const courtWide = data.find(r => r.DisplayName === currentCourtName) || {};
-      const locationData = data.find(x => x.DisplayName === currentCourtName && x.Name === locationName);
-      if (locationData) {
-        renderLocationServices(locationData, courtWide);
-      }
+    function openListbox() {
+      if ($comboboxInput.disabled || allLocations.length === 0) return;
+      isListboxOpen = true;
+      $listbox.hidden = false;
+      $comboboxWrapper.setAttribute('aria-expanded', 'true');
     }
 
+    function closeListbox() {
+      isListboxOpen = false;
+      $listbox.hidden = true;
+      $comboboxWrapper.setAttribute('aria-expanded', 'false');
+    }
+
+    function selectLocation(locationData) {
+      selectedLocation = locationData;
+      $comboboxInput.value = locationData.Name;
+      closeListbox();
+      
+      const courtWide = data.find(r => r.DisplayName === currentCourtName) || {};
+      renderLocationServices(locationData, courtWide);
+    }
+
+    // Event listeners
     $comboboxInput.addEventListener('input', () => {
       const query = $comboboxInput.value;
       filterOptions(query);
-      if ($listbox.hidden) {
-        $listbox.hidden = false;
-        $comboboxWrapper.setAttribute('aria-expanded', 'true');
+      if (!isListboxOpen) {
+        openListbox();
       }
     });
 
     $comboboxInput.addEventListener('focus', () => {
       if (!$comboboxInput.disabled && allLocations.length > 0) {
         filterOptions($comboboxInput.value);
-        $listbox.hidden = false;
-        $comboboxWrapper.setAttribute('aria-expanded', 'true');
+        openListbox();
       }
     });
 
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.combobox') && !e.target.closest('.listbox')) {
-        $listbox.hidden = true;
-        $comboboxWrapper.setAttribute('aria-expanded', 'false');
-      }
+    $comboboxInput.addEventListener('blur', () => {
+      // Delay to allow click on option to register
+      setTimeout(() => {
+        if (!isListboxOpen) return;
+        closeListbox();
+      }, 200);
     });
 
     /* ---------- Load CSV ---------- */
@@ -877,9 +892,10 @@
     $display.addEventListener('change', () => {
       $comboboxInput.value = "";
       $comboboxInput.disabled = !$display.value;
-      selectedLocationName = "";
+      $comboboxWrapper.classList.toggle('disabled', !$display.value);
+      selectedLocation = null;
       $listbox.innerHTML = "";
-      $listbox.hidden = true;
+      closeListbox();
 
       hide($results);
       hide($physicalPrompt);
@@ -914,11 +930,12 @@
       $display.value = "";
       $comboboxInput.value = "";
       $comboboxInput.disabled = true;
-      selectedLocationName = "";
+      $comboboxWrapper.classList.add('disabled');
+      selectedLocation = null;
       currentCourtName = "";
       allLocations = [];
       $listbox.innerHTML = "";
-      $listbox.hidden = true;
+      closeListbox();
       
       hide($efiling);
       hide($results);
