@@ -559,7 +559,9 @@
     let allCourts = [];
     let allLocations = [];
     let currentCourtName = "";
+    let currentCourtInputValue = "";
     let selectedLocation = null;
+    let currentLocationInputValue = "";
     let isCourtListboxOpen = false;
     let isListboxOpen = false;
 
@@ -852,8 +854,11 @@
         if (isListboxOpen) {
           closeListbox();
         } else {
-          // Force repopulate with all locations each time
-          filterOptions($comboboxInput.value);
+          // Save current value before clearing
+          currentLocationInputValue = $comboboxInput.value;
+          // Clear input to show full list when reopening
+          $comboboxInput.value = "";
+          filterOptions("");
           openListbox();
         }
       }
@@ -861,8 +866,11 @@
 
     $comboboxInput.addEventListener('focus', () => {
       if (!$comboboxInput.disabled && allLocations.length > 0 && !isListboxOpen) {
-        // Force repopulate with all locations each time
-        filterOptions($comboboxInput.value);
+        // Save current value before clearing
+        currentLocationInputValue = $comboboxInput.value;
+        // Clear input to show full list when focusing
+        $comboboxInput.value = "";
+        filterOptions("");
         openListbox();
       }
     });
@@ -871,6 +879,10 @@
       // Delay to allow click on option to register
       setTimeout(() => {
         if (!isListboxOpen) return;
+        // Restore previous value if no new selection was made
+        if (selectedLocation && $comboboxInput.value !== selectedLocation.Name) {
+          $comboboxInput.value = currentLocationInputValue;
+        }
         closeListbox();
       }, 200);
     });
@@ -970,14 +982,22 @@
       if (isCourtListboxOpen) {
         closeCourtListbox();
       } else {
-        filterCourts($courtInput.value);
+        // Save current value before clearing
+        currentCourtInputValue = $courtInput.value;
+        // Clear input to show full list when reopening
+        $courtInput.value = "";
+        filterCourts("");
         openCourtListbox();
       }
     });
 
     $courtInput.addEventListener('focus', () => {
       if (!isCourtListboxOpen) {
-        filterCourts($courtInput.value);
+        // Save current value before clearing
+        currentCourtInputValue = $courtInput.value;
+        // Clear input to show full list when focusing
+        $courtInput.value = "";
+        filterCourts("");
         openCourtListbox();
       }
     });
@@ -985,6 +1005,10 @@
     $courtInput.addEventListener('blur', () => {
       setTimeout(() => {
         if (!isCourtListboxOpen) return;
+        // Restore previous value if no new selection was made
+        if ($courtInput.value !== currentCourtName) {
+          $courtInput.value = currentCourtInputValue;
+        }
         closeCourtListbox();
       }, 200);
     });
