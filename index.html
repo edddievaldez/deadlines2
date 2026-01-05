@@ -1,0 +1,585 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Court Service Availability</title>
+
+  <style>
+    * { font-family: Arial, sans-serif !important; }
+    html, body { background: transparent; margin: 0; padding: 0; }
+    :root { --brand: #1e6f97; --text: #111; --muted: #666; --border: #e6e6e6; --soft: #eef5fb; }
+
+#form-container {
+  width: 100%;
+  max-width: 760px;
+  padding: 30px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.06);    
+  box-shadow: 0 10px 25px rgba(0,0,0,0.10); 
+  background-clip: padding-box;            
+  position: relative;                    
+  overflow: visible;                     
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+    .main-header {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 5px 0 8px;
+      color: var(--text);
+    }
+    .subhead {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 0 0 18px;
+      line-height: 1.35;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: end;
+    }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #d7d7d7;
+      border-radius: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    select:disabled { background: #f5f5f5; color: #777; }
+    select:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(30,111,151,0.15);
+      outline: none;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 7px;
+      border: none;
+      cursor: pointer;
+      transition: filter 0.15s ease;
+    }
+    #reset-button {
+      background: #e9eef2;
+      color: #1a1a1a;
+      width: 100%;
+    }
+    #reset-button:hover { filter: brightness(0.97); }
+
+    .info-card {
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+    }
+    .info-card.hidden { display: none; }
+
+    .card-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 0 10px;
+    }
+    .card-title h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .scope {
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+      margin-top: 2px;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid #eee;
+      margin: 14px 0;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin: 8px 0;
+      font-size: 14px;
+      color: var(--text);
+      align-items: flex-start;
+    }
+    .k {
+      flex: 0 0 210px;
+      max-width: 210px;
+      font-weight: 700;
+      color: #222;
+    }
+    .v {
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      color: #111;
+    }
+    @media (max-width: 520px) {
+      .row { flex-direction: column; gap: 4px; }
+      .k { flex: none; max-width: none; }
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .pill .dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: currentColor;
+      opacity: 0.9;
+    }
+    .pill.available { color: #0f6b2f; background: #e8f6ee; border-color: #cdebd8; }
+    .pill.unavailable { color: #9b1c1c; background: #fdeaea; border-color: #f7c8c8; }
+    .pill.unknown { color: #6b4f0f; background: #fff6df; border-color: #f2e1b0; }
+
+    .deadline-box {
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--soft);
+      border: 1px solid rgba(30,111,151,0.20);
+      margin-top: 10px;
+    }
+    .deadline-box .label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #1a1a1a;
+      margin-bottom: 6px;
+    }
+    .deadline-box .time {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      color: #0f2f3f;
+      margin-bottom: 6px;
+    }
+    .deadline-box .hint {
+      font-size: 12px;
+      color: var(--muted);
+      font-style: italic;
+      line-height: 1.35;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #d8e5ee;
+      background: #f7fbfe;
+      color: #0f4f6b;
+      font-weight: 800;
+      border-radius: 9px;
+      padding: 8px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle:hover { filter: brightness(0.98); }
+    .details.hidden { display: none; }
+
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      margin: 0;
+    }
+
+    .prompt {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #fbfbfb;
+      border: 1px dashed #dedede;
+      font-size: 13px;
+      color: #1a1a1a;
+    }
+    .prompt strong { color: #111; }
+
+    .cta {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #1a1a1a;
+      background: #fbfbfb;
+      border: 1px dashed #dedede;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+    .cta strong { color: #111; }
+
+    .footer {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="form-container">
+    <div class="main-header">Court Service Availability</div>
+    <div class="subhead">
+      Select a court to see <strong>eFiling (court-wide)</strong>. If you need physical filing or courtesy copy delivery cutoffs, select a courthouse location.
+    </div>
+
+    <div class="grid">
+      <div>
+        <label for="displayName">Court</label>
+        <select id="displayName">
+          <option value="">Select a Court…</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="name">Courthouse Location (for physical services)</label>
+        <select id="name" disabled>
+          <option value="">Select a Location…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="reset-button" type="button">Reset</button>
+    </div>
+
+    <!-- eFiling (court-wide) -->
+    <div id="efiling" class="info-card hidden"></div>
+
+    <!-- Prompt that appears after Court selection to guide to physical services -->
+    <div id="physicalPrompt" class="prompt hidden"></div>
+
+    <!-- Location-specific services -->
+    <div id="results" class="info-card hidden"></div>
+
+    <div class="footer">
+      <div><strong>Data freshness:</strong> We recommend confirming time-sensitive requirements when the filing is urgent.</div>
+      <div>Deadlines shown are One Legal operational cutoffs designed to help you meet court timing.</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script>
+  (async function () {
+    const $display = document.getElementById('displayName');
+    const $name = document.getElementById('name');
+    const $reset = document.getElementById('reset-button');
+    const $efiling = document.getElementById('efiling');
+    const $results = document.getElementById('results');
+    const $physicalPrompt = document.getElementById('physicalPrompt');
+
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const isOne = v => String(v).trim() === "1";
+    const uniq = arr => [...new Set(arr)].sort((a,b)=>String(a).localeCompare(String(b)));
+
+    function hide(el){ el.classList.add('hidden'); el.innerHTML = ""; }
+    function show(el){ el.classList.remove('hidden'); }
+
+    function formatAddress(r) {
+      const a1 = (r.Address_Address1 || "").trim();
+      const city = (r.Address_City || "").trim();
+      const state = (r.Address_State || "").trim();
+      const zip = (r.Address_PostalCode || "").trim();
+      const cityStateZip = ([city, state].filter(Boolean).join(", ") + (zip ? ` ${zip}` : "")).trim();
+      return [a1, cityStateZip].filter(Boolean).join(", ");
+    }
+
+    function pillHTML(isAvailable) {
+      if (isAvailable === true) return `<span class="pill available"><span class="dot"></span>Available</span>`;
+      if (isAvailable === false) return `<span class="pill unavailable"><span class="dot"></span>Not Available</span>`;
+      return `<span class="pill unknown"><span class="dot"></span>Unknown</span>`;
+    }
+
+    function scrollToEl(el) {
+      try { el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {}
+    }
+
+    function wireToggles(root) {
+      const toggles = root.querySelectorAll('[data-toggle]');
+      toggles.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-toggle');
+          const el = document.getElementById(id);
+          if (!el) return;
+          const nowHidden = el.classList.toggle('hidden');
+          const expanded = !nowHidden;
+          btn.setAttribute('aria-expanded', String(expanded));
+          btn.textContent = expanded ? "Hide details" : "Show details (EFM, size limits, status)";
+          sendHeightSoon();
+        }, { once: true });
+      });
+    }
+
+    function renderEFiling(courtWide, courtName) {
+      const canEF = isOne(courtWide.CanEfiling);
+      const status = (courtWide.EFilingStatus || "").trim();
+      const divisions = (courtWide.EFilingDivisions || "").trim();
+      const deadline = (courtWide.EFilingDeadline || "").trim();
+      const recBy = (courtWide.EFilingRecommendedBy || "").trim();
+      const efm = (courtWide.EFM || "").trim();
+      const maxDoc = (courtWide.MaxEfileDocSize || "").trim();
+      const maxEnv = (courtWide.MaxEfileEnvSize || "").trim();
+
+      const detailsId = "efiling-details";
+
+      $efiling.innerHTML = `
+        <div class="card-title">
+          <div>
+            <h3>eFiling</h3>
+            <div class="scope">Court-wide — applies across locations for ${esc(courtName || "this court")}</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="k">Availability</span>
+          <span class="v">${pillHTML(canEF)}</span>
+        </div>
+
+        ${canEF ? `
+          ${divisions ? `
+            <div class="row">
+              <span class="k">Divisions</span>
+              <span class="v">${esc(divisions)}</span>
+            </div>
+          ` : ""}
+
+          ${(deadline || recBy) ? `
+            <div class="deadline-box">
+              <div class="label">Court Deadline</div>
+              <div class="time">${esc(deadline || "11:59 PM")}</div>
+              <div class="hint">
+                ${recBy ? `Recommended: submit through One Legal by at least <strong>${esc(recBy)}</strong>.` : ""}
+              </div>
+            </div>
+          ` : ""}
+
+          <div style="margin-top:12px;">
+            <button class="toggle" type="button" data-toggle="${detailsId}" aria-expanded="false">
+              Show details (EFM, size limits, status)
+            </button>
+          </div>
+
+          <div id="${detailsId}" class="details hidden" style="margin-top:10px;">
+            ${status ? `<div class="row"><span class="k">Status</span><span class="v">${esc(status)}</span></div>` : ""}
+            ${efm ? `<div class="row"><span class="k">EFM</span><span class="v">${esc(efm)}</span></div>` : ""}
+            ${maxDoc ? `<div class="row"><span class="k">Max Doc Size</span><span class="v">${esc(maxDoc)}</span></div>` : ""}
+            ${maxEnv ? `<div class="row"><span class="k">Max Envelope Size</span><span class="v">${esc(maxEnv)}</span></div>` : ""}
+            ${(!status && !efm && !maxDoc && !maxEnv) ? `<p class="empty">No additional eFiling details are available for this court.</p>` : ""}
+          </div>
+        ` : `
+          <p class="empty">This court does not currently offer eFiling through One Legal.</p>
+        `}
+      `;
+
+      show($efiling);
+      wireToggles($efiling);
+      scrollToEl($efiling);
+      sendHeightSoon();
+    }
+
+    function renderPhysicalPrompt() {
+      $physicalPrompt.innerHTML = `
+        <strong>Need physical services?</strong>
+        Select a courthouse location to see physical court filing and courtesy copy delivery cutoffs for that location.
+      `;
+      show($physicalPrompt);
+      sendHeightSoon();
+    }
+
+    function renderLocationServices(r) {
+      const canFile = isOne(r.CanFile);
+      const canCC = isOne(r.CanCourtesyCopy);
+      const addr = formatAddress(r);
+
+      $results.innerHTML = `
+        <div class="card-title">
+          <div>
+            <h3>Physical Services</h3>
+            <div class="scope">Courthouse-specific — varies by location</div>
+          </div>
+        </div>
+
+        <div class="row"><span class="k">Court</span><span class="v">${esc(r.DisplayName)}</span></div>
+        <div class="row"><span class="k">Courthouse</span><span class="v">${esc(r.Name)}</span></div>
+        ${addr ? `<div class="row"><span class="k">Address</span><span class="v">${esc(addr)}</span></div>` : ""}
+
+        <hr/>
+
+        <h3 style="margin:0 0 8px; font-size:16px; font-weight:800;">Physical Court Filing</h3>
+        <div class="row"><span class="k">Availability</span><span class="v">${pillHTML(canFile)}</span></div>
+
+        ${canFile ? `
+          ${(r.FileDeadline || r.FileServiceLevel) ? `
+            <div class="deadline-box">
+              <div class="label">Submission cutoff to meet service level</div>
+              <div class="time">${esc((r.FileDeadline || "").trim())}</div>
+              <div class="hint">
+                ${r.FileServiceLevel ? `Service level: <strong>${esc((r.FileServiceLevel || "").trim())}</strong>.` : ""}
+              </div>
+            </div>
+          ` : ""}
+        ` : ""}
+
+        <hr/>
+
+        <h3 style="margin:0 0 8px; font-size:16px; font-weight:800;">Courtesy Copy Delivery</h3>
+        <div class="row"><span class="k">Availability</span><span class="v">${pillHTML(canCC)}</span></div>
+
+        ${canCC ? `
+          ${(r.CCDeliveryDeadline || r.CCDeliveryServiceLevel) ? `
+            <div class="deadline-box">
+              <div class="label">Submission cutoff to meet service level</div>
+              <div class="time">${esc((r.CCDeliveryDeadline || "").trim())}</div>
+              <div class="hint">
+                ${r.CCDeliveryServiceLevel ? `Service level: <strong>${esc((r.CCDeliveryServiceLevel || "").trim())}</strong>.` : ""}
+              </div>
+            </div>
+          ` : ""}
+        ` : ""}
+
+        <div class="cta">
+          <strong>Ready to proceed?</strong> Place your order through One Legal to meet the cutoffs above.
+        </div>
+      `;
+
+      show($results);
+      scrollToEl($results);
+      sendHeightSoon();
+    }
+
+    /* ---------- Load CSV ---------- */
+    const csv = await fetch('court-db.csv', { cache: 'no-store' }).then(r => r.text());
+    const data = Papa.parse(csv, { header: true, skipEmptyLines: true }).data;
+
+    /* ---------- Populate courts ---------- */
+    uniq(data.map(r => r.DisplayName).filter(Boolean)).forEach(v => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v;
+      $display.appendChild(o);
+    });
+
+    /* ---------- Court selection ---------- */
+    $display.addEventListener('change', () => {
+      // reset location dropdown
+      $name.innerHTML = '<option value="">Select a Location…</option>';
+      $name.disabled = !$display.value;
+      $name.value = "";
+
+      // hide location-specific results
+      hide($results);
+
+      // hide prompt unless we show it later
+      hide($physicalPrompt);
+
+      if ($display.value) {
+        // show ONLY eFiling on court selection
+        const courtWide = data.find(r => r.DisplayName === $display.value) || {};
+        renderEFiling(courtWide, $display.value);
+
+        // populate locations, but do NOT show physical card yet
+        const locations = uniq(
+          data.filter(r => r.DisplayName === $display.value).map(r => r.Name).filter(Boolean)
+        );
+        locations.forEach(v => {
+          const o = document.createElement('option');
+          o.value = v;
+          o.textContent = v;
+          $name.appendChild(o);
+        });
+
+        // show a gentle prompt below eFiling guiding to select location for physical services
+        renderPhysicalPrompt();
+      } else {
+        hide($efiling);
+        hide($results);
+        hide($physicalPrompt);
+        sendHeightSoon();
+      }
+    });
+
+    /* ---------- Location selection ---------- */
+    $name.addEventListener('change', () => {
+      hide($results);
+      if ($display.value && $name.value) {
+        const r = data.find(x => x.DisplayName === $display.value && x.Name === $name.value);
+        if (r) renderLocationServices(r);
+      } else {
+        sendHeightSoon();
+      }
+    });
+
+    /* ---------- Reset ---------- */
+    $reset.addEventListener('click', () => {
+      $display.value = "";
+      $name.innerHTML = '<option value="">Select a Location…</option>';
+      $name.disabled = true;
+      hide($efiling);
+      hide($results);
+      hide($physicalPrompt);
+      sendHeightSoon();
+      scrollToEl(document.getElementById('form-container'));
+    });
+
+    /* ---------- IFRAME AUTO-HEIGHT ---------- */
+    let heightTimer = null;
+    function sendHeightSoon() {
+      if (heightTimer) clearTimeout(heightTimer);
+      heightTimer = setTimeout(() => {
+        try {
+          const height = document.documentElement.scrollHeight;
+          window.parent.postMessage({ type: "onelegal_court_lookup_height", height }, "*");
+        } catch (e) {}
+      }, 60);
+    }
+    window.addEventListener("load", sendHeightSoon);
+    window.addEventListener("resize", sendHeightSoon);
+    const observer = new MutationObserver(sendHeightSoon);
+    observer.observe(document.body, { childList: true, subtree: true });
+  })();
+  </script>
+</body>
+</html>
