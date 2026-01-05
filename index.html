@@ -146,11 +146,16 @@
       font-size: 14px;
       line-height: 1.5;
       background: transparent;
+      cursor: pointer;
     }
 
     .combobox input:disabled {
       color: #9a9a9a;
       cursor: not-allowed;
+    }
+
+    .combobox input:read-only {
+      cursor: pointer;
     }
 
     .combobox input:focus {
@@ -505,6 +510,7 @@
             aria-autocomplete="list"
             aria-controls="courthouse-listbox"
             aria-activedescendant=""
+            readonly
             disabled
           />
 
@@ -854,17 +860,22 @@
     }
 
     // Event listeners
-    $comboboxInput.addEventListener('input', () => {
-      const query = $comboboxInput.value;
-      filterOptions(query);
-      if (!isListboxOpen) {
-        openListbox();
+    $comboboxInput.addEventListener('click', () => {
+      if (!$comboboxInput.disabled && allLocations.length > 0) {
+        if (isListboxOpen) {
+          closeListbox();
+        } else {
+          // Force repopulate with all locations each time
+          populateListbox(allLocations);
+          openListbox();
+        }
       }
     });
 
     $comboboxInput.addEventListener('focus', () => {
-      if (!$comboboxInput.disabled && allLocations.length > 0) {
-        filterOptions($comboboxInput.value);
+      if (!$comboboxInput.disabled && allLocations.length > 0 && !isListboxOpen) {
+        // Force repopulate with all locations each time
+        populateListbox(allLocations);
         openListbox();
       }
     });
@@ -893,6 +904,7 @@
     $display.addEventListener('change', () => {
       $comboboxInput.value = "";
       $comboboxInput.disabled = !$display.value;
+      $comboboxInput.readOnly = !!$display.value;
       $comboboxWrapper.classList.toggle('disabled', !$display.value);
       selectedLocation = null;
       $listbox.innerHTML = "";
@@ -911,7 +923,6 @@
         renderSummary(courtWide, null);
 
         allLocations = data.filter(r => r.DisplayName === $display.value);
-        populateListbox(allLocations);
 
         renderPhysicalPrompt();
       } else {
