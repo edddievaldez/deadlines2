@@ -87,41 +87,7 @@
       margin-bottom: 6px;
     }
 
-    /* Regular Select (Court) */
-    select {
-      width: 100%;
-      height: 44px;
-      padding: 0 40px 0 14px;
-      border: 1px solid #d0d0d0;
-      border-radius: 6px;
-      font-family: "IBM Plex Sans", sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      box-sizing: border-box;
-      background: #fff;
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8"><path fill="%23666" d="M1.41 0L6 4.58 10.59 0 12 1.42l-6 6-6-6z"/></svg>');
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-      appearance: none;
-      cursor: pointer;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      overflow: hidden;
-    }
-    
-    select:disabled { 
-      background-color: #f6f6f6; 
-      color: #9a9a9a;
-      cursor: not-allowed;
-    }
-    
-    select:focus {
-      border-color: #3a6edc;
-      box-shadow: 0 0 0 3px rgba(58,110,220,0.15);
-      outline: none;
-    }
-
-    /* Combobox (Courthouse) */
+    /* Combobox (both Court and Courthouse) */
     .combobox {
       position: relative;
       display: flex;
@@ -492,11 +458,34 @@
 
     <div class="grid">
       <div class="field">
-        <label for="displayName">Court</label>
-        <select id="displayName">
-          <option value="">Select a Court…</option>
-        </select>
+        <label for="court-combobox">Court</label>
+
+        <div class="combobox" role="combobox" aria-expanded="false" aria-haspopup="listbox">
+          <input
+            id="court-combobox"
+            type="text"
+            placeholder="Select a Court…"
+            aria-autocomplete="list"
+            aria-controls="court-listbox"
+            aria-activedescendant=""
+            readonly
+          />
+
+          <button class="combobox-chevron" tabindex="-1" aria-hidden="true">
+            ▾
+          </button>
+        </div>
+
         <div class="helper-text">Determines eFiling availability.</div>
+
+        <ul
+          id="court-listbox"
+          class="listbox"
+          role="listbox"
+          hidden
+        >
+          <!-- populated dynamically -->
+        </ul>
       </div>
 
       <div class="field">
@@ -561,7 +550,9 @@
 
   <script>
   (async function () {
-    const $display = document.getElementById('displayName');
+    const $courtInput = document.getElementById('court-combobox');
+    const $courtWrapper = $courtInput.parentElement;
+    const $courtListbox = document.getElementById('court-listbox');
     const $comboboxInput = document.getElementById('courthouse-combobox');
     const $comboboxWrapper = $comboboxInput.parentElement;
     const $listbox = document.getElementById('courthouse-listbox');
@@ -572,9 +563,11 @@
     const $physicalPrompt = document.getElementById('physicalPrompt');
     const $confirmation = document.getElementById('confirmation');
 
+    let allCourts = [];
     let allLocations = [];
     let currentCourtName = "";
     let selectedLocation = null;
+    let isCourtListboxOpen = false;
     let isListboxOpen = false;
 
     const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -893,19 +886,49 @@
     const data = Papa.parse(csv, { header: true, skipEmptyLines: true }).data;
 
     /* ---------- Populate courts ---------- */
-    uniq(data.map(r => r.DisplayName).filter(Boolean)).forEach(v => {
-      const o = document.createElement('option');
-      o.value = v;
-      o.textContent = v;
-      $display.appendChild(o);
-    });
+    allCourts = uniq(data.map(r => r.DisplayName).filter(Boolean));
+    
+    function populateCourtListbox() {
+      $courtListbox.innerHTML = "";
+      
+      allCourts.forEach(courtName => {
+        const option = document.createElement('li');
+        option.className = 'listbox-option';
+        option.setAttribute('role', 'option');
+        option.setAttribute('tabindex', '-1');
+        option.textContent = courtName;
+        
+        option.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          selectCourt(courtName);
+        });
+        
+        $courtListbox.appendChild(option);
+      });
+    }
 
-    /* ---------- Court selection ---------- */
-    $display.addEventListener('change', () => {
+    function openCourtListbox() {
+      isCourtListboxOpen = true;
+      $courtListbox.hidden = false;
+      $courtWrapper.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeCourtListbox() {
+      isCourtListboxOpen = false;
+      $courtListbox.hidden = true;
+      $courtWrapper.setAttribute('aria-expanded', 'false');
+    }
+
+    function selectCourt(courtName) {
+      currentCourtName = courtName;
+      $courtInput.value = courtName;
+      closeCourtListbox();
+      
+      // Reset courthouse
       $comboboxInput.value = "";
-      $comboboxInput.disabled = !$display.value;
-      $comboboxInput.readOnly = !!$display.value;
-      $comboboxWrapper.classList.toggle('disabled', !$display.value);
+      $comboboxInput.disabled = false;
+      $comboboxInput.readOnly = true;
+      $comboboxWrapper.classList.remove('disabled');
       selectedLocation = null;
       $listbox.innerHTML = "";
       closeListbox();
@@ -915,31 +938,47 @@
       hide($summary);
       hide($confirmation);
 
-      if ($display.value) {
-        currentCourtName = $display.value;
-        const courtWide = data.find(r => r.DisplayName === $display.value) || {};
-        
-        renderEFiling(courtWide, $display.value);
-        renderSummary(courtWide, null);
+      const courtWide = data.find(r => r.DisplayName === courtName) || {};
+      
+      renderEFiling(courtWide, courtName);
+      renderSummary(courtWide, null);
 
-        allLocations = data.filter(r => r.DisplayName === $display.value);
+      allLocations = data.filter(r => r.DisplayName === courtName);
 
-        renderPhysicalPrompt();
+      renderPhysicalPrompt();
+    }
+
+    // Court combobox events
+    $courtInput.addEventListener('click', () => {
+      if (isCourtListboxOpen) {
+        closeCourtListbox();
       } else {
-        currentCourtName = "";
-        allLocations = [];
-        hide($efiling);
-        hide($results);
-        hide($physicalPrompt);
-        hide($summary);
-        hide($confirmation);
-        sendHeightSoon();
+        populateCourtListbox();
+        openCourtListbox();
       }
     });
 
+    $courtInput.addEventListener('focus', () => {
+      if (!isCourtListboxOpen) {
+        populateCourtListbox();
+        openCourtListbox();
+      }
+    });
+
+    $courtInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!isCourtListboxOpen) return;
+        closeCourtListbox();
+      }, 200);
+    });
+
+    /* ---------- Courthouse location events ---------- */
+
     /* ---------- Reset ---------- */
     $reset.addEventListener('click', () => {
-      $display.value = "";
+      $courtInput.value = "";
+      closeCourtListbox();
+      
       $comboboxInput.value = "";
       $comboboxInput.disabled = true;
       $comboboxWrapper.classList.add('disabled');
