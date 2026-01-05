@@ -582,9 +582,9 @@
     }
 
     function pillHTML(isAvailable) {
-      if (isAvailable === true) return `<span class="pill available"><span class="dot"></span>Available</span>`;
-      if (isAvailable === false) return `<span class="pill unavailable"><span class="dot"></span>Not Available</span>`;
-      return `<span class="pill info"><span class="dot"></span>Unknown</span>`;
+      if (isAvailable === true) return `<span class="pill available">Available</span>`;
+      if (isAvailable === false) return `<span class="pill unavailable">Not Available</span>`;
+      return `<span class="pill info">Unknown</span>`;
     }
 
     function scrollToEl(el) {
